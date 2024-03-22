@@ -1,0 +1,137 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = "virtualbox"
+
+Vagrant.configure("2") do |config|
+    # Define the VMs
+    config.vm.define "firewall" do |firewall|
+      firewall.vm.box = "kalilinux/rolling"
+      firewall.vm.hostname = "firewall"
+      firewall.vm.network :private_network, ip: "192.168.55.254",virtualbox__intnet: "sw-1"
+      firewall.vm.network :private_network, ip: "192.168.56.254",virtualbox__intnet: "sw-2"
+      firewall.vm.network :private_network, ip: "192.168.57.254",virtualbox__intnet: "sw-3"
+      firewall.vm.network "forwarded_port", guest: 22, host: 2222, auto_correct: true
+      # Provider Virtualbox
+      firewall.vm.provider "virtualbox" do |vb|
+        vb.name = "fire_wall_a43"
+        vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-vms"]
+        vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-vms"]
+        vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-vms"]
+        vb.memory = "2048"
+        vb.cpus = 1
+        vb.gui=false
+        end # of vb
+      # Shared folders
+      if Vagrant::Util::Platform.windows? then
+        # Configuration SPECIFIC for Windows 10 hosts
+        firewall.vm.synced_folder "../../a43-pedro-tomas-renato", "/home/vagrant/project",
+          owner: "vagrant", group: "vagrant",
+          mount_options: ["dmode=775","fmode=755"]
+      else
+        firewall.vm.synced_folder "../", "/home/vagrant/project",
+          mount_options: ["dmode=775", "fmode=755"]
+      end # of shared folders
+    end
+
+    config.vm.define "webserver" do |webserver|
+      webserver.vm.box = "kalilinux/rolling"
+      webserver.vm.hostname = "webserver"
+      webserver.vm.network :private_network, ip: "192.168.55.2", virtualbox__intnet: "sw-1"
+      webserver.vm.network "forwarded_port", guest: 22, host: 2225, auto_correct: true
+      # Provider Virtualbox
+      webserver.vm.provider "virtualbox" do |vb|
+        vb.name = "webserver"
+        vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-vms"]
+        vb.customize ["modifyvm", :id, "--nic3", "nat"]
+        vb.memory = "2048"
+        vb.cpus = 1
+        vb.gui=false
+        end # of vb
+      # Shared folders
+      if Vagrant::Util::Platform.windows? then
+        # Configuration SPECIFIC for Windows 10 hosts
+        webserver.vm.synced_folder "../../a43-pedro-tomas-renato", "/home/vagrant/project",
+          owner: "vagrant", group: "vagrant",
+          mount_options: ["dmode=775","fmode=755"]
+      else
+        webserver.vm.synced_folder "../", "/home/vagrant/project",
+          mount_options: ["dmode=775", "fmode=755"]
+      end # of shared folders
+      webserver.vm.provision "shell", inline: <<-SHELL
+        apt-get update
+        apt-get install -y maven
+
+        # Install OpenJDK
+        apt-get install -y openjdk-11-jdk
+      SHELL
+    end
+
+    config.vm.define "database" do |database|
+      database.vm.box = "kalilinux/rolling"
+      database.vm.hostname = "database"
+      database.vm.network :private_network, ip: "192.168.56.2", virtualbox__intnet: "sw-2"
+      database.vm.network "forwarded_port", guest: 22, host: 2224, auto_correct: true
+      # Provider Virtualbox
+      database.vm.provider "virtualbox" do |vb|
+        vb.name = "database"
+        vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-vms"]
+        vb.memory = "2048"
+        vb.cpus = 1
+        vb.gui=false
+        end # of vb
+      # Shared folders
+      if Vagrant::Util::Platform.windows? then
+        # Configuration SPECIFIC for Windows 10 hosts
+        database.vm.synced_folder "../../a43-pedro-tomas-renato", "/home/vagrant/project",
+          owner: "vagrant", group: "vagrant",
+          mount_options: ["dmode=775","fmode=755"]
+      else
+        database.vm.synced_folder "../", "/home/vagrant/project",
+          mount_options: ["dmode=775", "fmode=755"]
+      end # of shared folders
+    end
+
+    config.vm.define "client" do |client|
+      client.vm.box = "kalilinux/rolling"
+      client.vm.hostname = "client"
+      client.vm.network :private_network, ip: "192.168.57.2",virtualbox__intnet: "sw-3"
+      client.vm.network "forwarded_port", guest: 22, host: 2223, auto_correct: true
+      # Provider Virtualbox
+      client.vm.provider "virtualbox" do |vb|
+        vb.name = "client"
+        vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-vms"]
+        vb.customize ["modifyvm", :id, "--nic3", "nat"]
+        vb.memory = "2048"
+        vb.cpus = 1
+        vb.gui=false
+        end # of vb
+      # Shared folders
+      if Vagrant::Util::Platform.windows? then
+        # Configuration SPECIFIC for Windows 10 hosts
+        client.vm.synced_folder "../../a43-pedro-tomas-renato", "/home/vagrant/project",
+          owner: "vagrant", group: "vagrant",
+          mount_options: ["dmode=775","fmode=755"]
+      else
+        client.vm.synced_folder "../", "/home/vagrant/project",
+          mount_options: ["dmode=775", "fmode=755"]
+      end # of shared folders
+      client.vm.provision "shell", inline: <<-SHELL
+        # Install Maven
+        apt-get update
+        apt-get install -y maven
+
+        # Install OpenJDK
+        apt-get install -y openjdk-11-jdk
+      SHELL
+    end
+  
+    # Configuration for all VMs
+    config.vm.provision "shell", inline: <<-SHELL
+      # Disable VirtualBox Guest Additions installation
+      echo "vboxadd-service hold" | dpkg --set-selections
+      echo "virtualbox-guest-x11 hold" | dpkg --set-selections
+    SHELL
+  end
+
+  
